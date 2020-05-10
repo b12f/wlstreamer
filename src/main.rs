@@ -18,6 +18,10 @@ fn help() {
     println!("  --not-ws <ws-num>         Do not show this workspace. Can be used multiple times. Example: 3");
     println!("  --not-screen <screen>     Do not show this screen. Can be used multiple times. Example: HDMI-A-1");
     println!("  -o|--output <output>      Output to this device. Defaults to /dev/video0");
+    println!("");
+    println!(
+        "If there are no screens available for streaming, a black screen will be shown instead."
+    );
     std::process::exit(0);
 }
 
@@ -36,6 +40,9 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
                 "v4l2",
                 config.output.as_str(),
             ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()?;
 
         config.current_screen = "".to_string();
@@ -52,6 +59,8 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
                 output_str.as_str(),
             ])
             .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()?;
 
         cmd.stdin
@@ -146,6 +155,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stdout = match Command::new("bash")
         .args(&["-c", "swaymsg -t subscribe -m \"['window']\""])
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdin(Stdio::piped())
         .spawn()?
         .stdout
     {
