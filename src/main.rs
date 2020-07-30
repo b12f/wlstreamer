@@ -12,7 +12,7 @@ struct Config {
 fn help() {
     println!("Wrapper around wf-recorder and ffmpeg that automatically switches the screen being recorded based on current window focus");
     println!("");
-    println!("Usage: stream-screen [options]");
+    println!("Usage: wlstreamer [options]");
     println!("");
     println!("Options:");
     println!("  --not-ws <ws-num>         Do not show this workspace. Can be used multiple times. Example: 3");
