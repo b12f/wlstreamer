@@ -1,4 +1,4 @@
-# stream-screen
+# wlstreamer
 
 Wrapper around `wf-recorder` and `ffmpeg` that automatically switches the screen being recorded based on current window focus. Works with `sway`.
 
