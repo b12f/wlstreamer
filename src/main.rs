@@ -90,7 +90,7 @@ fn get_valid_screens_for_recording(config: &Config) -> Vec<String> {
         command.push_str(workspace.as_str());
     }
     command.push_str(")) | map(.output) | .[]'");
-    let output = Command::new("bash")
+    let output = Command::new("sh")
         .args(&["-c", command.as_str()])
         .output()
         .expect("Couldn't get current focus");
@@ -111,7 +111,7 @@ fn get_screen_index(screen: &String) -> String {
     let mut command = "swaymsg -t get_outputs | jq -r 'map(.name==\"".to_string();
     command.push_str(screen.as_str());
     command.push_str("\") | index(true) + 1'");
-    let output = Command::new("bash")
+    let output = Command::new("sh")
         .args(&["-c", command.as_str()])
         .output()
         .expect("Couldn't get screen index");
@@ -157,7 +157,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let valid_screens = get_valid_screens_for_recording(&config);
     let mut recorder = record_screen(&mut config, &valid_screens)?;
 
-    let stdout = match Command::new("bash")
+    let stdout = match Command::new("sh")
         .args(&["-c", "swaymsg -t subscribe -m \"['window']\""])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
