@@ -29,9 +29,10 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
     if valid_screens.len() == 0 {
         let cmd = Command::new("ffmpeg")
             .args(&[
-                "--i",
-                "color=size=1920x1080:rate=25:color=black",
-                "--f=lavfi",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=black:s=1920x1080:r=25/1",
                 "-vcodec",
                 "rawvideo",
                 "-pix_fmt",
@@ -51,6 +52,7 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
     } else {
         let index = get_screen_index(&valid_screens[0]);
         let output_str = format!("--file={}", config.output.as_str());
+        println!("Outputting to {}", output_str);
         let mut cmd = Command::new("wf-recorder")
             .args(&[
                 "--muxer=v4l2",
@@ -94,10 +96,14 @@ fn get_valid_screens_for_recording(config: &Config) -> Vec<String> {
         .expect("Couldn't get current focus");
 
     let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 from get_workspaces");
-    let valid_screens = stdout.split('\n').map(|s| s.to_string()).collect();
-    for screen in &valid_screens {
-        println!("{}", screen);
-    }
+    let valid_screens = stdout
+        .split('\n')
+        .map(|s| s.to_string())
+        .filter(|s| s != "")
+        .collect();
+
+    println!("Found screens: {:?}", valid_screens);
+
     return valid_screens;
 }
 
@@ -122,7 +128,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         workspace_blacklist: Vec::new(),
     };
     let args: Vec<String> = env::args().collect();
-    println!("{:?}", args);
 
     let mut i = 1;
     loop {
