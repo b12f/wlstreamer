@@ -10,6 +10,8 @@ struct Config {
     verbose: bool,
 }
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 fn help() {
     println!("Wrapper around wf-recorder and ffmpeg that automatically switches the screen being recorded based on current window focus");
     println!("");
@@ -19,7 +21,8 @@ fn help() {
     println!("  --not-ws <ws-num>         Do not show this workspace. Can be used multiple times. Example: 3");
     println!("  --not-screen <screen>     Do not show this screen. Can be used multiple times. Example: HDMI-A-1");
     println!("  -o|--output <output>      Output to this device. Defaults to /dev/video0");
-    println!("  -v|--verbose              Verbose logging");
+    println!("  -v|--version              Display version and exit");
+    println!("  --verbose                 Verbose logging");
     println!("");
     println!(
         "If there are no screens available for streaming, a black screen will be shown instead."
@@ -62,7 +65,7 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
     } else {
         let index = get_screen_index(&valid_screens[0]);
         let output_str = format!("--file={}", config.output.as_str());
-        println!("Outputting to {}", output_str);
+        println!("Outputting to {}", config.output.as_str());
         let mut cmd = Command::new("wf-recorder")
             .args(&[
                 "--muxer=v4l2",
@@ -72,14 +75,14 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
             ])
             .stdin(Stdio::piped())
             .stdout(if config.verbose {
-                Stdio::piped()
-            } else {
                 Stdio::inherit()
+            } else {
+                Stdio::piped()
             })
             .stderr(if config.verbose {
-                Stdio::piped()
-            } else {
                 Stdio::inherit()
+            } else {
+                Stdio::piped()
             })
             .spawn()?;
 
@@ -164,8 +167,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else if arg == "-o" || arg == "--output" {
             i += 1;
             config.output = args[i].clone();
-        } else if arg == "-v" || arg == "--verbose" {
+        } else if arg == "--verbose" {
             config.verbose = true;
+        } else if arg == "-v" || arg == "--version" {
+            println!("v{}", VERSION);
+            std::process::exit(0);
         } else if arg == "-h" || arg == "--help" {
             help();
         } else {
