@@ -1,12 +1,27 @@
+use serde::{Deserialize, Serialize};
 use std::env;
-use std::io::{BufRead, BufReader, Error, ErrorKind, Write};
+use std::io::{BufRead, BufReader, Error};
 use std::process::{Child, Command, Stdio};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct SwayWorkspace {
+    id: u32,
+    name: String,
+    focus: Vec<u32>,
+    output: String,
+    focused: bool,
+    visible: bool,
+    num: u32,
+    #[serde(rename = "type")]
+    type_name: String,
+    representation: String,
+}
 
 struct Config {
     current_screen: String,
     output: String,
     screen_blacklist: Vec<String>,
-    workspace_blacklist: Vec<String>,
+    workspace_blacklist: Vec<u32>,
     verbose: bool,
 }
 
@@ -63,14 +78,15 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
 
         return Ok(cmd);
     } else {
-        let index = get_screen_index(&valid_screens[0]);
         let output_str = format!("--file={}", config.output.as_str());
+        let screen_str = format!("-o{}", valid_screens[0]);
         println!("Outputting to {}", config.output.as_str());
-        let mut cmd = Command::new("wf-recorder")
+        let cmd = Command::new("wf-recorder")
             .args(&[
                 "--muxer=v4l2",
                 "--codec=rawvideo",
                 "--pixel-format=yuyv422",
+                screen_str.as_str(),
                 output_str.as_str(),
             ])
             .stdin(Stdio::piped())
@@ -86,11 +102,6 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
             })
             .spawn()?;
 
-        cmd.stdin
-            .as_mut()
-            .ok_or(Error::new(ErrorKind::Other, "Recorder process failed"))?
-            .write_all(index.as_bytes())?;
-
         config.current_screen = valid_screens[0].as_str().to_string();
 
         return Ok(cmd);
@@ -98,47 +109,45 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
 }
 
 fn get_valid_screens_for_recording(config: &Config) -> Vec<String> {
-    let mut command =
-        "swaymsg -t get_workspaces | jq -r 'sort_by(.focused != true) | map(select(.visible"
-            .to_string();
-    for screen in &config.screen_blacklist {
-        command.push_str(" and .output != \"");
-        command.push_str(screen.as_str());
-        command.push_str("\"");
-    }
-    for workspace in &config.workspace_blacklist {
-        command.push_str(" and .num != ");
-        command.push_str(workspace.as_str());
-    }
-    command.push_str(")) | map(.output) | .[]'");
+    let mut command = "swaymsg -t get_workspaces";
     let output = Command::new("sh")
-        .args(&["-c", command.as_str()])
+        .args(&["-c", command])
         .output()
         .expect("Couldn't get current focus");
 
-    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 from get_workspaces");
-    let valid_screens = stdout
-        .split('\n')
-        .map(|s| s.to_string())
-        .filter(|s| s != "")
+    let stdout_string =
+        String::from_utf8(output.stdout).expect("Invalid UTF-8 from get_workspaces");
+    let mut workspaces: Vec<SwayWorkspace> =
+        serde_json::from_str(stdout_string.as_str()).expect("Invalid json from get_workspaces");
+
+    if config.verbose {
+        println!("Found workspaces");
+        for elem in workspaces.iter() {
+            println!("{:?}", elem);
+        }
+    }
+
+    workspaces = workspaces
+        .into_iter()
+        .filter(|w| {
+            w.visible
+                && !config
+                    .screen_blacklist
+                    .iter()
+                    .any(|screen| screen.eq(&w.output))
+                && !config.workspace_blacklist.iter().any(|&num| num == w.num)
+        })
         .collect();
 
-    println!("Found recordable screens: {:?}", valid_screens);
+    if config.verbose {
+        println!("Filtered workspaces");
+        for elem in workspaces.iter() {
+            println!("{:?}", elem);
+        }
+    }
 
-    return valid_screens;
-}
-
-fn get_screen_index(screen: &String) -> String {
-    let mut command = "swaymsg -t get_outputs | jq -r 'map(.name==\"".to_string();
-    command.push_str(screen.as_str());
-    command.push_str("\") | index(true) + 1'");
-    let output = Command::new("sh")
-        .args(&["-c", command.as_str()])
-        .output()
-        .expect("Couldn't get screen index");
-
-    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8 from get_workspaces");
-    return stdout;
+    workspaces.sort_by_key(|w| w.focused);
+    return workspaces.into_iter().map(|w| w.output).collect();
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -160,7 +169,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let arg = &args[i];
         if arg == "--not-ws" {
             i += 1;
-            config.workspace_blacklist.push(args[i].clone());
+            config
+                .workspace_blacklist
+                .push(args[i].clone().parse::<u32>().unwrap());
         } else if arg == "--not-screen" {
             i += 1;
             config.screen_blacklist.push(args[i].clone());
