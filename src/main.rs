@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::env;
 use std::io::{BufRead, BufReader, Error};
 use std::process::{Child, Command, Stdio};
@@ -146,7 +147,15 @@ fn get_valid_screens_for_recording(config: &Config) -> Vec<String> {
         }
     }
 
-    workspaces.sort_by_key(|w| w.focused);
+    workspaces.sort_by(|a, b| {
+        if a.focused && !b.focused {
+            Ordering::Less
+        } else if a.focused == b.focused {
+            Ordering::Equal
+        } else {
+            Ordering::Greater
+        }
+    });
     return workspaces.into_iter().map(|w| w.output).collect();
 }
 
