@@ -7,6 +7,7 @@ struct Config {
     output: String,
     screen_blacklist: Vec<String>,
     workspace_blacklist: Vec<String>,
+    verbose: bool,
 }
 
 fn help() {
@@ -18,6 +19,7 @@ fn help() {
     println!("  --not-ws <ws-num>         Do not show this workspace. Can be used multiple times. Example: 3");
     println!("  --not-screen <screen>     Do not show this screen. Can be used multiple times. Example: HDMI-A-1");
     println!("  -o|--output <output>      Output to this device. Defaults to /dev/video0");
+    println!("  -v|--verbose              Verbose logging");
     println!("");
     println!(
         "If there are no screens available for streaming, a black screen will be shown instead."
@@ -42,8 +44,16 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
                 config.output.as_str(),
             ])
             .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stdout(if config.verbose {
+                Stdio::piped()
+            } else {
+                Stdio::inherit()
+            })
+            .stderr(if config.verbose {
+                Stdio::piped()
+            } else {
+                Stdio::inherit()
+            })
             .spawn()?;
 
         config.current_screen = "".to_string();
@@ -61,8 +71,16 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
                 output_str.as_str(),
             ])
             .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stdout(if config.verbose {
+                Stdio::piped()
+            } else {
+                Stdio::inherit()
+            })
+            .stderr(if config.verbose {
+                Stdio::piped()
+            } else {
+                Stdio::inherit()
+            })
             .spawn()?;
 
         cmd.stdin
@@ -102,7 +120,7 @@ fn get_valid_screens_for_recording(config: &Config) -> Vec<String> {
         .filter(|s| s != "")
         .collect();
 
-    println!("Found screens: {:?}", valid_screens);
+    println!("Found recordable screens: {:?}", valid_screens);
 
     return valid_screens;
 }
@@ -126,6 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         output: "/dev/video0".to_string(),
         screen_blacklist: Vec::new(),
         workspace_blacklist: Vec::new(),
+        verbose: false,
     };
     let args: Vec<String> = env::args().collect();
 
@@ -145,6 +164,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else if arg == "-o" || arg == "--output" {
             i += 1;
             config.output = args[i].clone();
+        } else if arg == "-v" || arg == "--verbose" {
+            config.verbose = true;
         } else if arg == "-h" || arg == "--help" {
             help();
         } else {

@@ -1,6 +1,6 @@
 [package]
 name = "wlstreamer"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Benjamin Bädorf <hello@benjaminbaedorf.eu>"]
 edition = "2018"
 
