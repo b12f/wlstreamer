@@ -41,7 +41,7 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
                 "-vcodec",
                 "rawvideo",
                 "-pix_fmt",
-                "yuv420p",
+                "yuyv422",
                 "-f",
                 "v4l2",
                 config.output.as_str(),
@@ -70,7 +70,7 @@ fn record_screen(config: &mut Config, valid_screens: &Vec<String>) -> Result<Chi
             .args(&[
                 "--muxer=v4l2",
                 "--codec=rawvideo",
-                "--pixel-format=yuv420p",
+                "--pixel-format=yuyv422",
                 output_str.as_str(),
             ])
             .stdin(Stdio::piped())
