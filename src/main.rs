@@ -100,8 +100,9 @@ fn help() {
     println!("For example, two outputs, one 1600x1200, another 1920x1080, will result in an output stream of 1920x1200. Any remaining space will be padded black.");
     println!("Another example, two outputs, one 640x480, another 1920x1080, will result in an output stream of 1920x1080. Space will only be padded black on the smaller screen.");
     println!("");
-    println!("To support this behaviour, wlstreamer needs access to a v4l2loopback device for each resolution, included the combined upscaled one if applicable.");
-    println!("For the first example above, this would mean you would need 3 devices. For the second, you'd need two. If all your outputs have the same resolution, you only need an output device.");
+    println!("To support this behaviour, wlstreamer needs access to a v4l2loopback device for each resolution, included the combined upscaled one if applicable. For the first example above, this would mean you would need 3 devices. For the second, you'd need two. If all your outputs have the same resolution, you only need an output device.");
+    println!("");
+    println!("The --devices-from or -d option specifies at which device index it is okay to start using loopback devices. For example, if you specify -d 3, and you need 2 capture devices, /dev/video3 and /dev/video4 will be used by wlstreamer, with /dev/video3 being the output you want to use in other applications.");
     println!("");
     println!("DYNAMICALLY CHANGING RESOLUTIONS");
     println!("");
