@@ -201,7 +201,7 @@ fn record_screen(config: &mut Config, output: SwayOutput) -> Result<Vec<Box<Chil
         // TODO: This is slow, ugly, and prone to failure. ffmpeg will fail if wf-recorder isn't
         // writing yet, however I'm not sure how to get an exact timing of when it's okay to start
         // reading from the device.
-        thread::sleep(time::Duration::from_millis(40));
+        thread::sleep(time::Duration::from_millis(100));
 
         let upscaler = Command::new("ffmpeg")
             .args(&[
