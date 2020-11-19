@@ -110,8 +110,8 @@ fn help() {
     std::process::exit(0);
 }
 
-fn stream_black(config: &mut Config) -> Result<Vec<Child>, Error> {
-    let mut cmd = Command::new("ffmpeg")
+fn stream_black(config: &mut Config) -> Result<Vec<Box<Child>>, Error> {
+    let cmd = Command::new("ffmpeg")
         .args(&[
             "-i",
             format!(
@@ -142,10 +142,10 @@ fn stream_black(config: &mut Config) -> Result<Vec<Child>, Error> {
 
     config.current_output = "".to_string();
 
-    return Ok(vec![cmd]);
+    return Ok(vec![Box::new(cmd)]);
 }
 
-fn record_screen(config: &mut Config, output: SwayOutput) -> Result<Vec<Child>, Error> {
+fn record_screen(config: &mut Config, output: SwayOutput) -> Result<Vec<Box<Child>>, Error> {
     let resolution = Resolution {
         height: output.current_mode.height,
         width: output.current_mode.width,
@@ -191,7 +191,7 @@ fn record_screen(config: &mut Config, output: SwayOutput) -> Result<Vec<Child>, 
 
     config.current_output = output.name.as_str().to_string();
 
-    let mut processes = vec![recorder];
+    let mut processes = vec![Box::new(recorder)];
 
     if device_number != config.devices_from {
         if config.verbose {
@@ -227,7 +227,7 @@ fn record_screen(config: &mut Config, output: SwayOutput) -> Result<Vec<Child>, 
             })
             .spawn()?;
 
-        processes.push(upscaler);
+        processes.push(Box::new(upscaler));
     }
     format!("/dev/video{}", device_number).as_str();
 
@@ -411,6 +411,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .outputs
         .insert(config.resolutions[0], config.devices_from);
     config.current_device_index += 1;
+    let valid_screens = get_valid_screens_for_recording(&config);
+    let mut recorders: Vec<Box<Child>> = if valid_screens.len() == 0 {
+        stream_black(&mut config)?
+    } else {
+        let output = get_output(&mut config, valid_screens[0].output.as_str());
+        record_screen(&mut config, output)?
+    };
 
     let stdout = match Command::new("sh")
         .args(&["-c", "swaymsg -t subscribe -m \"['window']\""])
@@ -425,33 +432,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let reader = BufReader::new(stdout);
-    reader
-        .lines()
-        .filter_map(|line| line.ok())
-        .for_each(|_| -> Result<(), Error> {
-            println!("Switched focus");
-            let valid_screens = get_valid_screens_for_recording(&config);
-            if valid_screens.len() > 0 && valid_screens[0].output == config.current_output {
-                return Ok(());
+    reader.lines().filter_map(|line| line.ok()).for_each(|_| {
+        println!("Switched focus");
+        let valid_screens = get_valid_screens_for_recording(&config);
+        if valid_screens.len() > 0 && valid_screens[0].output == config.current_output {
+            return;
+        }
+        for recorder in recorders.iter_mut() {
+            if config.verbose {
+                println!("Killing child");
             }
-            let output = get_output(&mut config, valid_screens[0].output.as_str());
-            for recorder in recorders.iter() {
-                match recorder.kill() {
-                    Ok(_) => {}
-                    Err(err) => panic!("{:?}", err),
-                };
-            }
-
-            let mut recorders: Vec<Child> = if valid_screens.len() != 0 {
-                stream_black(&mut config)?
-            } else {
-                let output = get_output(&mut config, valid_screens[0].output.as_str());
-                record_screen(&mut config, output)?
+            match recorder.kill() {
+                Ok(_) => {}
+                Err(err) => panic!("{:?}", err),
             };
-            println!("Recording {}", config.current_output);
+        }
 
-            Ok(())
-        });
+        recorders = if valid_screens.len() == 0 {
+            stream_black(&mut config).unwrap()
+        } else {
+            let output = get_output(&mut config, valid_screens[0].output.as_str());
+            record_screen(&mut config, output).unwrap()
+        };
+
+        println!("Recording {}", config.current_output);
+    });
 
     Ok(())
 }
