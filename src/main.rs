@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::env;
 use std::io::{BufRead, BufReader, Error};
 use std::process::{Child, Command, Stdio};
+use std::{thread, time};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct SwayScreenRect {
@@ -62,7 +63,7 @@ struct Resolution {
 struct Config {
     current_output: String,
     devices_from: usize,
-    current_device_index: usize,
+    last_device_index: usize,
     screen_blacklist: Vec<String>,
     workspace_blacklist: Vec<usize>,
     verbose: bool,
@@ -154,11 +155,9 @@ fn record_screen(config: &mut Config, output: SwayOutput) -> Result<Vec<Box<Chil
     let device_number = match config.outputs.get(&resolution) {
         Some(device_number) => *device_number,
         None => {
-            config
-                .outputs
-                .insert(resolution, config.current_device_index);
-            config.current_device_index += 1;
-            config.current_device_index
+            config.last_device_index += 1;
+            config.outputs.insert(resolution, config.last_device_index);
+            config.last_device_index
         }
     };
 
@@ -198,6 +197,11 @@ fn record_screen(config: &mut Config, output: SwayOutput) -> Result<Vec<Box<Chil
             println!("Does not have the maximum combined resolution, filtering through ffmpeg");
         }
 
+        // TODO: This is slow, ugly, and prone to failure. ffmpeg will fail if wf-recorder isn't
+        // writing yet, however I'm not sure how to get an exact timing of when it's okay to start
+        // reading from the device.
+        thread::sleep(time::Duration::from_millis(40));
+
         let upscaler = Command::new("ffmpeg")
             .args(&[
                 "-i",
@@ -216,20 +220,19 @@ fn record_screen(config: &mut Config, output: SwayOutput) -> Result<Vec<Box<Chil
             ])
             .stdin(Stdio::piped())
             .stdout(if config.verbose {
-                Stdio::piped()
-            } else {
                 Stdio::inherit()
+            } else {
+                Stdio::piped()
             })
             .stderr(if config.verbose {
-                Stdio::piped()
-            } else {
                 Stdio::inherit()
+            } else {
+                Stdio::piped()
             })
             .spawn()?;
 
         processes.push(Box::new(upscaler));
     }
-    format!("/dev/video{}", device_number).as_str();
 
     return Ok(processes);
 }
@@ -364,7 +367,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut config = Config {
         current_output: "".to_string(),
         devices_from: 0,
-        current_device_index: 0,
+        last_device_index: 0,
         screen_blacklist: Vec::new(),
         workspace_blacklist: Vec::new(),
         verbose: false,
@@ -391,7 +394,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else if arg == "-d" || arg == "--devices-from" {
             i += 1;
             config.devices_from = args[i].clone().parse::<usize>().unwrap();
-            config.current_device_index = config.devices_from;
         } else if arg == "--verbose" {
             config.verbose = true;
         } else if arg == "-v" || arg == "--version" {
@@ -410,7 +412,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     config
         .outputs
         .insert(config.resolutions[0], config.devices_from);
-    config.current_device_index += 1;
+    config.last_device_index = config.devices_from;
     let valid_screens = get_valid_screens_for_recording(&config);
     let mut recorders: Vec<Box<Child>> = if valid_screens.len() == 0 {
         stream_black(&mut config)?
