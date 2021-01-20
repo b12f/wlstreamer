@@ -17,7 +17,6 @@ struct SwayScreenRect {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct SwayWorkspace {
-    id: usize,
     name: String,
     focus: Vec<usize>,
     output: String,
@@ -25,9 +24,6 @@ struct SwayWorkspace {
     rect: SwayScreenRect,
     visible: bool,
     num: usize,
-    #[serde(rename = "type")]
-    type_name: String,
-    representation: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -39,18 +35,9 @@ struct SwayOutputMode {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct SwayOutput {
-    id: usize,
     name: String,
     rect: SwayScreenRect,
-    layout: String,
-    orientation: String,
-    #[serde(rename = "type")]
-    type_name: String,
-    make: String,
-    model: String,
-    serial: String,
     current_mode: SwayOutputMode,
-    focused: bool,
 }
 
 #[derive(Copy, Clone, Hash, Eq, Debug)]
