@@ -19,7 +19,8 @@ There's an AUR package called `wlstreamer-git`, alternatively you can build and 
 
 See `wlstreamer --help`. If there are no screens available for streaming, a black screen will be shown instead.
 
-```
+---
+
 Usage: wlstreamer [options]
 Wrapper around wf-recorder and ffmpeg that automatically switches the screen being recorded based on current window focus
 
@@ -46,4 +47,3 @@ DYNAMICALLY CHANGING RESOLUTIONS
 
 As long as you have enough v4l2loopback devices available for new resolutions, it should be fine to change resolutions on an output.
 However, if your resolution is either wider or taller than the output resolution, this will result in failures, since dynamically changing the v4l2loopback device resolution is not possible.
-```
