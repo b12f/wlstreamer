@@ -268,6 +268,7 @@ fn get_resolutions(config: &mut Config) -> Vec<Resolution> {
         .collect_vec();
 
     if config.verbose {
+        println!("Found resolutions:");
         println!("{:?}", resolutions);
     }
 
@@ -291,7 +292,10 @@ fn get_resolutions(config: &mut Config) -> Vec<Resolution> {
     );
 
     if config.verbose {
-        println!("Combined maximum resolution {:?}", combined_resolution);
+        println!(
+            "Found combined maximum resolution {:?}",
+            combined_resolution
+        );
     }
 
     resolutions.insert(0, combined_resolution);
@@ -313,7 +317,7 @@ fn get_valid_screens_for_recording(config: &Config) -> Vec<SwayWorkspace> {
         serde_json::from_str(stdout_string.as_str()).expect("Invalid json from get_workspaces");
 
     if config.verbose {
-        println!("Found workspaces");
+        println!("Found workspaces:");
         for elem in workspaces.iter() {
             println!("{:?}", elem);
         }
@@ -332,7 +336,7 @@ fn get_valid_screens_for_recording(config: &Config) -> Vec<SwayWorkspace> {
         .collect();
 
     if config.verbose {
-        println!("Filtered workspaces");
+        println!("Blacklisted workspaces filtered out:");
         for elem in workspaces.iter() {
             println!("{:?}", elem);
         }
@@ -423,9 +427,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let reader = BufReader::new(stdout);
     reader.lines().filter_map(|line| line.ok()).for_each(|_| {
-        println!("Switched focus");
+        println!("Focus switched event");
         let valid_screens = get_valid_screens_for_recording(&config);
         if valid_screens.len() > 0 && valid_screens[0].output == config.current_output {
+            println!("Screen is the same, no need to switch");
             return;
         }
         for recorder in recorders.iter_mut() {
